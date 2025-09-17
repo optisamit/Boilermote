@@ -30,8 +30,6 @@ class Max6675(SPIDevice):
         # on the falling edge, but common implementations and
         # visual analysis of the timing diagram favor mode 0.
         self._spi.clock_mode = 0
-        self._spi.lsb_first = False
-        self._spi.bits_per_word = 8
 
     @property
     def raw_value(self):

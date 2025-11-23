@@ -1,6 +1,7 @@
 asgiref==3.11.0
 colorzero==2.0
 Django==5.2.8
+django-debug-toolbar==6.1.0
 gpiozero==2.0.1
 lgpio==0.2.2.0
 setuptools==80.9.0

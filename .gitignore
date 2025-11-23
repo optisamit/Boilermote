@@ -22,3 +22,6 @@ local_settings.py
 
 # Other environment/system files
 .DS_Store
+
+# IDE config
+.idea/

@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 
+from django.utils.csp import CSP
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -53,6 +55,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
+    'django.middleware.csp.ContentSecurityPolicyMiddleware',
 ]
 
 ROOT_URLCONF = 'webapp.urls'
@@ -74,8 +77,7 @@ TEMPLATES = [
 
 AUTHENTICATION_BACKENDS = [
     # Needed to login by username in Django admin, regardless of `allauth`
-    'django.contrib.auth.backends.ModelBackend',
-
+    'django.contrib.auth.backends.ModelBackend', #TODO see if we can get away without this
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
@@ -145,4 +147,23 @@ SOCIALACCOUNT_PROVIDERS = {
         },
         'OAUTH_PKCE_ENABLED': True,
     }
+}
+
+# CSP
+# https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid#content_security_policy
+SECURE_CSP = {
+    'script-src': [
+        CSP.SELF,  # Recommended: Allow your own local scripts
+        'https://accounts.google.com/gsi/client',
+    ],
+
+    'frame-src': [
+        CSP.SELF,
+        'https://accounts.google.com/gsi/',
+    ],
+
+    'connect-src': [
+        CSP.SELF,
+        'https://accounts.google.com/gsi/',
+    ],
 }

@@ -153,8 +153,15 @@ SOCIALACCOUNT_PROVIDERS = {
 # https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid#content_security_policy
 SECURE_CSP = {
     'script-src': [
-        CSP.SELF,  # Recommended: Allow your own local scripts
+        CSP.SELF,
         'https://accounts.google.com/gsi/client',
+        'https://cdn.jsdelivr.net',
+        "'sha256-D/WM37gKPIqYV3YVjDVvj7eJmXVmReDNLMar7t29M4U='",
+    ],
+
+    'style-src': [
+        CSP.SELF,
+        'https://cdn.jsdelivr.net',
     ],
 
     'frame-src': [
@@ -165,5 +172,6 @@ SECURE_CSP = {
     'connect-src': [
         CSP.SELF,
         'https://accounts.google.com/gsi/',
+        'https://cdn.jsdelivr.net',
     ],
 }

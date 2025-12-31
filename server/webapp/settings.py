@@ -162,6 +162,8 @@ SECURE_CSP = {
     'style-src': [
         CSP.SELF,
         'https://cdn.jsdelivr.net',
+        'https://accounts.google.com/gsi/style',
+        "'unsafe-inline'",
     ],
 
     'frame-src': [

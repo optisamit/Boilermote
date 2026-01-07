@@ -149,6 +149,8 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
+SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
+
 # CSP
 # https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid#content_security_policy
 SECURE_CSP = {

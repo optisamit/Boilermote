@@ -55,6 +55,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
+    'django.contrib.auth.middleware.LoginRequiredMiddleware',
     'django.middleware.csp.ContentSecurityPolicyMiddleware',
 ]
 
@@ -83,6 +84,7 @@ AUTHENTICATION_BACKENDS = [
 
 WSGI_APPLICATION = 'webapp.wsgi.application'
 
+LOGIN_REDIRECT_URL = '/boiler/'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases

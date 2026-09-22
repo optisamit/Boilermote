@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     # Local apps
+    'webapp.apps.WebappConfig',
     'boiler.apps.BoilerConfig',
     # Allauth
     'allauth',

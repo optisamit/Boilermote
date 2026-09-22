@@ -39,6 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # Local apps
+    'boiler.apps.BoilerConfig',
     # Allauth
     'allauth',
     'allauth.account',

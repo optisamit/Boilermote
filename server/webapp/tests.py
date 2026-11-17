@@ -1,12 +1,17 @@
 from unittest import mock
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase, TransactionTestCase
+from django.urls import reverse
 
-from allauth.socialaccount.models import SocialApp
+from allauth.account.models import EmailAddress
+from allauth.socialaccount.models import SocialAccount, SocialLogin, SocialApp
+from allauth.socialaccount.providers import registry
 
+from .adapters import BootstrapSocialAccountAdapter
 from .management.commands.bootstrap import ensure_admin_user, upsert_google_app
 
 
@@ -123,3 +128,45 @@ class BootstrapPromptTests(TestCase):
         self.assertTrue(
             get_user_model().objects.get(email="admin@example.com").is_superuser
         )
+
+
+class SignupClosedTests(TestCase):
+    def test_adapter_closes_signup_for_everyone(self):
+        self.assertFalse(
+            BootstrapSocialAccountAdapter().is_open_for_signup(None, None)
+        )
+
+    def test_adapter_and_email_authentication_are_configured(self):
+        self.assertEqual(
+            settings.SOCIALACCOUNT_ADAPTER,
+            "webapp.adapters.BootstrapSocialAccountAdapter",
+        )
+        self.assertTrue(settings.SOCIALACCOUNT_EMAIL_AUTHENTICATION)
+        self.assertTrue(settings.SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT)
+
+    def _social_login(self, email):
+        app = SocialApp.objects.create(
+            provider="google", name="Google", client_id="cid", secret="s"
+        )
+        provider = registry.get_class("google")(request=None, app=app)
+        return SocialLogin(
+            provider=provider,
+            user=get_user_model()(email=email),
+            account=SocialAccount(provider="google", uid="123"),
+            email_addresses=[EmailAddress(email=email, verified=True)],
+        )
+
+    def test_signup_view_is_closed_for_an_unknown_google_email(self):
+        session = self.client.session
+        session["socialaccount_sociallogin"] = self._social_login(
+            "stranger@example.com"
+        ).serialize()
+        session.save()
+        response = self.client.get(reverse("socialaccount_signup"))
+        self.assertContains(response, "sign up is currently closed")
+
+    def test_email_authentication_resolves_the_pre_created_admin(self):
+        user, _ = ensure_admin_user("admin@example.com")
+        sociallogin = self._social_login("admin@example.com")
+        sociallogin.lookup()
+        self.assertEqual(sociallogin.user.pk, user.pk)

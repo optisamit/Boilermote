@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.template.loader import render_to_string
 from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 
@@ -170,3 +171,28 @@ class SignupClosedTests(TestCase):
         sociallogin = self._social_login("admin@example.com")
         sociallogin.lookup()
         self.assertEqual(sociallogin.user.pk, user.pk)
+
+
+class LoginButtonTests(TestCase):
+    def test_provider_element_renders_the_client_id_it_is_given(self):
+        html = render_to_string(
+            "allauth/elements/provider.html",
+            {"attrs": {"provider_id": "google", "client_id": "client-from-attrs"}},
+        )
+        self.assertIn('data-client_id="client-from-attrs"', html)
+
+    def test_login_page_uses_the_client_id_from_the_social_app(self):
+        SocialApp.objects.create(
+            provider="google",
+            name="Google",
+            client_id="client-from-db.apps.googleusercontent.com",
+            secret="s",
+        )
+        response = self.client.get(reverse("account_login"))
+        self.assertContains(
+            response, 'data-client_id="client-from-db.apps.googleusercontent.com"'
+        )
+
+    def test_login_page_renders_without_a_social_app(self):
+        response = self.client.get(reverse("account_login"))
+        self.assertEqual(response.status_code, 200)

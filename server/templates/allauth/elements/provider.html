@@ -1,6 +1,6 @@
 {% if attrs.provider_id == "google" %}
 <div id="g_id_onload"
-     data-client_id="956920296212-dosa55m3dcpe6vvgocekv6ee138vm4gq.apps.googleusercontent.com"
+     data-client_id="{{ attrs.client_id }}"
      data-context="use"
      data-ux_mode="popup"
      data-login_uri="{% url 'google_login_by_token' %}"

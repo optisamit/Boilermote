@@ -75,6 +75,20 @@ class EnsureAdminUserTests(TestCase):
         self.assertEqual(second.pk, first.pk)
         self.assertEqual(get_user_model().objects.count(), 1)
 
+    def test_stores_a_mixed_case_email_lowercased(self):
+        user, _ = ensure_admin_user("Admin@Example.com")
+        self.assertEqual(user.email, "admin@example.com")
+        self.assertEqual(user.username, "admin@example.com")
+
+    def test_normalizes_the_email_when_promoting_an_existing_user(self):
+        existing = get_user_model().objects.create_user(
+            "oleksandr", email="Admin@Example.com"
+        )
+        user, created = ensure_admin_user("admin@example.com")
+        self.assertFalse(created)
+        self.assertEqual(user.pk, existing.pk)
+        self.assertEqual(user.email, "admin@example.com")
+
 
 class BootstrapCommandTests(TransactionTestCase):
     # TransactionTestCase, not TestCase: the command calls `migrate`, which
@@ -168,6 +182,15 @@ class SignupClosedTests(TestCase):
 
     def test_email_authentication_resolves_the_pre_created_admin(self):
         user, _ = ensure_admin_user("admin@example.com")
+        sociallogin = self._social_login("admin@example.com")
+        sociallogin.lookup()
+        self.assertEqual(sociallogin.user.pk, user.pk)
+
+    def test_email_authentication_resolves_a_mixed_case_admin(self):
+        # Google may report the address in any case; allauth lowercases the
+        # query, so the stored email must be lowercase or the admin is locked
+        # out of their own install (signup is closed for everyone).
+        user, _ = ensure_admin_user("Admin@Example.com")
         sociallogin = self._social_login("admin@example.com")
         sociallogin.lookup()
         self.assertEqual(sociallogin.user.pk, user.pk)

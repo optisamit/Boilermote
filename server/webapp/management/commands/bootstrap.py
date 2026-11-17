@@ -37,13 +37,21 @@ def ensure_admin_user(email: str):
     Returns (user, created). A new user gets the email as its username and no
     usable password (it signs in through Google). An existing user keeps its
     username and password.
+
+    The email is stored lowercased: allauth's email authentication lowercases
+    the address it looks up, and the `User.email` fallback filters
+    case-sensitively, so a mixed-case stored address would never match and the
+    admin would be locked out (signup is closed for everyone else).
     """
+    email = email.strip().lower()
     User = get_user_model()
     user = User.objects.filter(email__iexact=email).first()
     created = user is None
     if created:
         user = User(username=email, email=email)
         user.set_unusable_password()
+    else:
+        user.email = email
     user.is_staff = True
     user.is_superuser = True
     user.save()

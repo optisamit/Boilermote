@@ -1,0 +1,125 @@
+from unittest import mock
+
+from django.contrib.auth import get_user_model
+from django.core.management import call_command
+from django.core.management.base import CommandError
+from django.test import TestCase, TransactionTestCase
+
+from allauth.socialaccount.models import SocialApp
+
+from .management.commands.bootstrap import ensure_admin_user, upsert_google_app
+
+
+class UpsertGoogleAppTests(TestCase):
+    def test_creates_the_single_app_when_none_exists(self):
+        app = upsert_google_app("cid", "secret")
+        self.assertEqual(SocialApp.objects.count(), 1)
+        self.assertEqual(app.provider, "google")
+        self.assertEqual(app.client_id, "cid")
+        self.assertEqual(app.secret, "secret")
+
+    def test_updates_in_place_and_deletes_duplicates(self):
+        first = SocialApp.objects.create(
+            provider="google", name="Old", client_id="old", secret="old"
+        )
+        SocialApp.objects.create(
+            provider="google", name="Dup", client_id="dup", secret="dup"
+        )
+        app = upsert_google_app("new", "new-secret")
+        self.assertEqual(SocialApp.objects.count(), 1)
+        self.assertEqual(app.pk, first.pk)
+        self.assertEqual(app.client_id, "new")
+        self.assertEqual(app.secret, "new-secret")
+
+
+class EnsureAdminUserTests(TestCase):
+    def test_creates_staff_superuser_with_unusable_password(self):
+        user, created = ensure_admin_user("admin@example.com")
+        self.assertTrue(created)
+        self.assertEqual(user.username, "admin@example.com")
+        self.assertEqual(user.email, "admin@example.com")
+        self.assertTrue(user.is_staff)
+        self.assertTrue(user.is_superuser)
+        self.assertFalse(user.has_usable_password())
+
+    def test_promotes_an_existing_user_and_keeps_its_username(self):
+        existing = get_user_model().objects.create_user(
+            "oleksandr", email="admin@example.com"
+        )
+        user, created = ensure_admin_user("admin@example.com")
+        self.assertFalse(created)
+        self.assertEqual(user.pk, existing.pk)
+        self.assertEqual(user.username, "oleksandr")
+        self.assertTrue(user.is_staff)
+        self.assertTrue(user.is_superuser)
+
+    def test_matches_an_existing_user_case_insensitively(self):
+        existing = get_user_model().objects.create_user(
+            "oleksandr", email="admin@example.com"
+        )
+        user, created = ensure_admin_user("Admin@Example.com")
+        self.assertFalse(created)
+        self.assertEqual(user.pk, existing.pk)
+        self.assertEqual(get_user_model().objects.count(), 1)
+
+    def test_is_idempotent(self):
+        first, _ = ensure_admin_user("admin@example.com")
+        second, created = ensure_admin_user("admin@example.com")
+        self.assertFalse(created)
+        self.assertEqual(second.pk, first.pk)
+        self.assertEqual(get_user_model().objects.count(), 1)
+
+
+class BootstrapCommandTests(TransactionTestCase):
+    # TransactionTestCase, not TestCase: the command calls `migrate`, which
+    # SQLite refuses inside a TestCase's atomic block.
+
+    def test_run_writes_the_app_and_the_admin(self):
+        call_command(
+            "bootstrap",
+            client_id="cid",
+            client_secret="secret",
+            admin_email="admin@example.com",
+            verbosity=0,
+        )
+        self.assertEqual(SocialApp.objects.get().client_id, "cid")
+        user = get_user_model().objects.get(email="admin@example.com")
+        self.assertTrue(user.is_superuser)
+
+    def test_run_is_idempotent(self):
+        for _ in range(2):
+            call_command(
+                "bootstrap",
+                client_id="cid",
+                client_secret="secret",
+                admin_email="admin@example.com",
+                verbosity=0,
+            )
+        self.assertEqual(SocialApp.objects.count(), 1)
+        self.assertEqual(get_user_model().objects.count(), 1)
+
+    def test_missing_values_with_noinput_raises_command_error(self):
+        with self.assertRaises(CommandError):
+            call_command("bootstrap", noinput=True, verbosity=0)
+
+
+class BootstrapPromptTests(TestCase):
+    def test_prompts_for_missing_values_when_interactive(self):
+        with mock.patch(
+            "webapp.management.commands.bootstrap._stdin_is_tty",
+            return_value=True,
+        ), mock.patch(
+            "builtins.input", side_effect=["cid", "admin@example.com"]
+        ), mock.patch(
+            "getpass.getpass", return_value="secret"
+        ), mock.patch(
+            "webapp.management.commands.bootstrap.call_command"
+        ) as migrate:
+            call_command("bootstrap", verbosity=0)
+        migrate.assert_called_once()
+        self.assertEqual(migrate.call_args.args[0], "migrate")
+        self.assertTrue(migrate.call_args.kwargs["run_syncdb"])
+        self.assertEqual(SocialApp.objects.get().client_id, "cid")
+        self.assertTrue(
+            get_user_model().objects.get(email="admin@example.com").is_superuser
+        )
